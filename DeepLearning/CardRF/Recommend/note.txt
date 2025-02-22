@@ -1,0 +1,10 @@
+CardRF:
+docker run -it -d --gpus all --name cardrf -v /home/ccc/npz/MultiViTOnRFDatasets/DeepLearning/CardRF:/CardRF -v /mnt/ssd/CardRFDataset:/CardRFDataset -v /home/ccc/npz/DeepLearning/CardRF:/SaveFolders -v /etc/localtime:/etc/localtime:ro -v /etc/timezone:/etc/timezone:ro -p 6006:6006 cardrf
+docker exec -it cardrf bash
+cd CardRF/Recommend
+python3 MyTrain.py
+#TensorBoard 读取整个 logs/fit 目录
+tensorboard --logdir=logs/fit --host=0.0.0.0 
+
+
+

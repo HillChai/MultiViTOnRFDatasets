@@ -1,0 +1,10 @@
+DroneRF:
+docker run -it -d --gpus all --name dronerf -v /home/ccc/npz/MultiViTOnRFDatasets/DeepLearning/DroneRF:/DroneRF -p 6006:6006 ecg_after_requirement
+docker exec -it dronerf bash
+cd DroneRF/Recommend
+python3 MyTrain.py
+
+#TensorBoard 读取整个 logs/fit 目录
+tensorboard --logdir=logs/fit --host=0.0.0.0
+
+然后打开http://localhost:6006

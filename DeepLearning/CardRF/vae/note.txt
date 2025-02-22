@@ -1,0 +1,42 @@
+                                                       Unique labels in y               len
+
+/BLUETOOTH/APPLE_IPAD3/APPLE_IPAD3.npz                       [0]                        85400,
+/BLUETOOTH/APPLE_IPHONE6S/APPLE_IPHONE6S.npz                 [1]                        85400,
+/BLUETOOTH/APPLE_IPHONE7/APPLE_IPHONE7.npz                   [2]                        85400,
+/BLUETOOTH/FITBIT_CHARGE3/FITBIT_CHARGE3.npz                 [3]                        85400,
+
+/BLUETOOTH/MOTOROLA/MOTOROLA.npz                             [4]                        59780,
+
+/UAV/BEEBEERUN/FLYING/FLYING.npz                             [5]                        85400,
+
+/UAV/DJI_INSPIRE/FLYING/FLYING.npz                           [6]                        42700,
+/UAV/DJI_INSPIRE/VIDEOING/VIDEOING.npz                       [7]                        42700,
+
+/UAV/DJI_M600/FLYING/FLYING.npz                              [8]                        85400,
+
+/UAV/DJI_MAVICPRO/FLYING/FLYING.npz                          [9]                        42700,
+/UAV/DJI_MAVICPRO/HOVERING/HOVERING.npz                      [10]                       42700,
+/UAV/DJI_PHANTOM/FLYING/FLYING.npz                           [11]                       42700,
+/UAV/DJI_PHANTOM/HOVERING/HOVERING.npz                       [12]                       42700,
+
+/UAV_Controller/3DR_IRIS/3DR_IRIS.npz                        [13]                       85400,
+
+/UAV_Controller/BEEBEERUN/BEEBEERUN.npz                      [14]                       59780,
+
+/UAV_Controller/DJI_INSPIRE/DJI_INSPIRE.npz                  [15]                       85400,
+/UAV_Controller/DJI_M600/DJI_M600.npz                        [16]                       85400,
+/UAV_Controller/DJI_MAVICPRO/DJI_MAVICPRO.npz                [17]                       85400,
+/UAV_Controller/DJI_PHANTOM/DJI_PHANTOM.npz                  [18]                       85400,
+/WIFI/CISCO_LINKSYS_E3200/CISCO_LINKSYS_E3200.npz            [19]                       85400
+/WIFI/TPLINK_TL_WR940N/TPLINK_TL_WR940N.npz                  [20]                       85400  
+
+ current summary: 1485960
+
+
+vae:
+docker run -it -d --gpus all --name vae -v /home/ccc/npz/MultiViTOnRFDatasets/DeepLearning/CardRF:/CardRF -v /mnt/ssd/CardRFDataset:/CardRFDataset -v /etc/localtime:/etc/localtime:ro -v /etc/timezone:/etc/timezone:ro -p 6006:6006 pytorch
+
+docker exec -it vae bash
+
+apt update && apt install -y python3 python3-pip python3-venv python3-dev
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
