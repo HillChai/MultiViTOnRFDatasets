@@ -246,8 +246,8 @@ def train(is_old_training: bool, train_path, test_path, checkpoint_dir, epochs):
 
 
 if __name__ == '__main__':
-    train(is_old_training=True,
+    train(is_old_training=False,
           train_path="/CardRFDataset/CardRF/LOS/Train",
           test_path="/CardRFDataset/CardRF/LOS/Test",
-          checkpoint_dir="/SaveFolders/distill_vit/checkpoints",
+          checkpoint_dir="/SaveFolders/LoRA_distill_vit/checkpoints",
           epochs=5)  # 15 40

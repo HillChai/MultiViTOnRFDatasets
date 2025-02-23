@@ -13,9 +13,9 @@ TRAIN_PATH = "/CardRFDataset/CardRF/LOS/Train"
 TEST_PATH = "/CardRFDataset/CardRF/LOS/Test"
 
 # 模型存储路径
-CHECKPOINT_DIR = "/SaveFolders/distill_vit/checkpoints"
-TEACHER_CKPT = "/SaveFolders/distill_vit/checkpoints/teacher/model_epoch_20_accuracy_0.8340"  # 教师模型权重
-STUDENT_CKPT = "/SaveFolders/distill_vit/checkpoints/student_vit"
+CHECKPOINT_DIR = "/SaveFolders/LoRA_distill_vit/checkpoints"
+TEACHER_CKPT = "/SaveFolders/LoRA_distill_vit/checkpoints/teacher/model_epoch_20_accuracy_0.8340"  # 教师模型权重
+STUDENT_CKPT = "/SaveFolders/LoRA_distill_vit/checkpoints/student_vit"
 
 # 类别数
 OLD_CLASSES = 21

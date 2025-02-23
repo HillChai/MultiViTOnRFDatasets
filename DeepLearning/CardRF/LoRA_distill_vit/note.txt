@@ -8,9 +8,10 @@ AR      10111       22        8784       7076
 CardRF:
 docker run -it -d --gpus all --name cardrf -v /home/ccc/npz/MultiViTOnRFDatasets/DeepLearning/CardRF:/CardRF -v /mnt/ssd/CardRFDataset:/CardRFDataset -v /home/ccc/npz/DeepLearning/CardRF:/SaveFolders -v /etc/localtime:/etc/localtime:ro -v /etc/timezone:/etc/timezone:ro -p 6006:6006 cardrf
 docker exec -it cardrf bash
-cd CardRF/distill_vit
+
+cd CardRF/LoRA_distill_vit
 python3 train.py
 
-cd CardRF/distill_vit/
+cd CardRF/LoRA_distill_vit/
 #TensorBoard 读取整个 logs/distillation 目录
 tensorboard --logdir=logs/distillation --host=0.0.0.0 
