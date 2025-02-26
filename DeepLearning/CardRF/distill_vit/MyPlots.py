@@ -19,7 +19,7 @@ def save_report_and_confusion_matrix(y_true, y_pred, labels, output_dir="/SaveFo
     os.makedirs(output_dir, exist_ok=True)
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-
+    print("Labels:", labels)
     str_labels = [str(label) for label in labels]
 
     # 混淆矩阵
@@ -37,7 +37,7 @@ def save_report_and_confusion_matrix(y_true, y_pred, labels, output_dir="/SaveFo
     cm = confusion_matrix(y_true, y_pred)
 
     plt.figure(figsize=(10, 8))
-    sns.heatmap(cm, annot=False, fmt='d', cmap="Blues", xticklabels=labels, yticklabels=labels)
+    sns.heatmap(cm, annot=False, fmt='d', cmap="Blues", xticklabels=str_labels, yticklabels=str_labels)
     plt.xlabel("Predicted label")
     plt.ylabel("True label")
     plt.title("Confusion Matrix")

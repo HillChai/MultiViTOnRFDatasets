@@ -3,19 +3,19 @@ import numpy as np
 
 # 训练参数
 BATCH_SIZE = 512
-LEARNING_RATE = 2e-6 #2e-5
-final_learning_rate = 1e-8
-TEMPERATURE = 4.0  # 蒸馏温度    2
-ALPHA = 0.7  # 蒸馏损失权重    0.7
+LEARNING_RATE = 1e-7 # 1e-5 4e-7 1e-7 2e-8
+final_learning_rate = 1e-10
+TEMPERATURE = 6.0  # 蒸馏温度    2
+ALPHA = 0.8  # 蒸馏损失权重    0.7
 
 # 数据路径
 TRAIN_PATH = "/CardRFDataset/CardRF/LOS/Train"
 TEST_PATH = "/CardRFDataset/CardRF/LOS/Test"
 
 # 模型存储路径
-CHECKPOINT_DIR = "/SaveFolders/distill_vit/checkpoints"
-TEACHER_CKPT = "/SaveFolders/distill_vit/checkpoints/teacher/model_epoch_20_accuracy_0.8340"  # 教师模型权重
-STUDENT_CKPT = "/SaveFolders/distill_vit/checkpoints/student_vit"
+CHECKPOINT_DIR = "/SaveFolders/Adapter_distill_vit/checkpoints"
+TEACHER_CKPT = "/SaveFolders/Adapter_distill_vit/checkpoints/teacher/model_epoch_20_accuracy_0.8340"  # 教师模型权重
+STUDENT_CKPT = "/SaveFolders/Adapter_distill_vit/checkpoints/student_vit"
 
 # 类别数
 OLD_CLASSES = 21

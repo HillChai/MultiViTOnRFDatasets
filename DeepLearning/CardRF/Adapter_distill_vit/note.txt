@@ -1,0 +1,17 @@
+                                        新类别              样本量            训练集样本量
+Phantom 11000       23        10248      7564
+AR      10110       21        10248      8784
+AR      10111       22        8784       7076
+
+
+
+CardRF:
+docker run -it -d --gpus all --name cardrf -v /home/ccc/npz/MultiViTOnRFDatasets/DeepLearning/CardRF:/CardRF -v /mnt/ssd/CardRFDataset:/CardRFDataset -v /home/ccc/npz/DeepLearning/CardRF:/SaveFolders -v /etc/localtime:/etc/localtime:ro -v /etc/timezone:/etc/timezone:ro -p 6006:6006 cardrf
+docker exec -it cardrf bash
+
+cd CardRF/LoRA_distill_vit
+python3 train.py
+
+cd CardRF/LoRA_distill_vit/
+#TensorBoard 读取整个 logs/distillation 目录
+tensorboard --logdir=logs/distillation --host=0.0.0.0 

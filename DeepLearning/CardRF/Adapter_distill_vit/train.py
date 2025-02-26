@@ -6,7 +6,7 @@ import gc
 import math
 from MyModel import VisionTransformer as teacher_VisionTransformer
 from Model import VisionTransformer as student_VisionTransformer
-from Model import Block, LoRALayer
+from Model import Block
 
 from dataset import gen_dataset
 from loss import DistillationLoss
@@ -50,7 +50,6 @@ def train_step(samples, one_labels, student_vit, teacher_vit, distill_loss_fn, o
         # 计算损失
         loss = distill_loss_fn(y_true=(one_labels, teacher_logits), y_pred=student_logits)
 
-    # ✅ Compute gradients only for LoRA and classification head
     grads = tape.gradient(loss, student_vit.trainable_variables)
     optimizer.apply_gradients(zip(grads, student_vit.trainable_variables))
 
@@ -79,7 +78,7 @@ def train(is_test_only: bool, is_old_training: bool, train_path, test_path, chec
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # 启用混合精度训练
-    policy = mixed_precision.Policy('mixed_float16')
+    policy = mixed_precision.Policy('mixed_float16') # float32
     mixed_precision.set_global_policy(policy)
 
     # 加载数据
@@ -107,8 +106,8 @@ def train(is_test_only: bool, is_old_training: bool, train_path, test_path, chec
         num_heads=6,
         mlp_dim=256,
         num_classes=NEW_CLASSES,
-        rank=128,  # LoRA Rank
         sd_survival_probability=0.9,
+        adapter_dim=128,
     )
 
     train_steps = math.ceil(train_count / BATCH_SIZE)
@@ -229,21 +228,24 @@ def train(is_test_only: bool, is_old_training: bool, train_path, test_path, chec
 
     # 测试集评估
     logger.info("\nEvaluating on test set:")
-    # Compile the model before evaluation
-    y_pred = np.argmax(student_vit.predict(test_ds, verbose=1), axis=1)
-    y_true = np.concatenate([np.argmax(y.numpy(), axis=1) for _, y in test_ds])
-    save_report_and_confusion_matrix(y_true, y_pred, LABELS)    
-
     student_vit.compile(
         optimizer=optimizer,
         loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
         metrics=["accuracy", tf.keras.metrics.AUC()]
     )
-
+    
     test_loss, test_accuracy, test_roc_auc = student_vit.evaluate(test_ds)
     logger.info(f"Test Loss: {test_loss}")
     logger.info(f"Test Accuracy: {test_accuracy}")
     logger.info(f"Test ROC AUC: {test_roc_auc}")
+
+    # Compile the model before evaluation
+    y_pred = np.argmax(student_vit.predict(test_ds, verbose=1), axis=1)
+    y_true = np.concatenate([np.argmax(y.numpy(), axis=1) for _, y in test_ds])
+    save_report_and_confusion_matrix(y_true, y_pred, LABELS)    
+
+    
+    
 
     
 
@@ -253,6 +255,6 @@ if __name__ == '__main__':
           is_old_training=True,
           train_path="/CardRFDataset/CardRF/LOS/Train",
           test_path="/CardRFDataset/CardRF/LOS/Test",
-          checkpoint_dir="/SaveFolders/LoRA_distill_vit/checkpoints",
-          log_dir = "/SaveFolders/LoRA_distill_vit/logs/distillation",
-          epochs=5)  # 15 40
+          checkpoint_dir="/SaveFolders/Adapter_distill_vit/checkpoints",
+          log_dir = "/SaveFolders/Adapter_distill_vit/logs/distillation",
+          epochs=5)  # 15 

@@ -1,17 +1,24 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
 
-class LoRALayer(tf.keras.layers.Layer):
-    def __init__(self, hidden_size, rank=8, alpha=16, **kwargs):
+
+class Adapter(tf.keras.layers.Layer):
+    def __init__(self, adapter_dim, dropout=0.0, **kwargs):
         super().__init__(**kwargs)
-        self.scale = alpha / rank
-        self.lora_A = tf.keras.layers.Dense(rank, use_bias=False)
-        self.lora_B = tf.keras.layers.Dense(hidden_size, use_bias=False)
+        self.adapter_dim = adapter_dim
+        self.dropout_rate = dropout
 
-    def call(self, inputs):
-        output = self.lora_B(self.lora_A(inputs))
-        return tf.cast(self.scale, output.dtype) * output
+    def build(self, input_shape):
+        hidden_size = input_shape[-1]
+        self.down_proj = tf.keras.layers.Dense(self.adapter_dim, activation='gelu')
+        self.up_proj = tf.keras.layers.Dense(hidden_size)
+        self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
 
+    def call(self, inputs, training=False):
+        x = self.down_proj(inputs)
+        x = self.dropout(x, training=training)
+        x = self.up_proj(x)
+        return inputs + x  # 残差连接
 
 
 class ViTEmbeddings(tf.keras.layers.Layer):
@@ -81,8 +88,8 @@ class Block(tf.keras.layers.Layer):
             attention_dropout=0.0,
             sd_survival_probability=1.0,
             activation="gelu",
-            rank=8,
             dropout=0.0,
+            adapter_dim=64,     # Adapter维度较小
             **kwargs,
     ):
         super().__init__(**kwargs)
@@ -93,26 +100,19 @@ class Block(tf.keras.layers.Layer):
             use_bias=attention_bias,
             dropout=attention_dropout,
         )
-        self.lora = LoRALayer(attention_dim, rank=rank)
         self.stochastic_depth = tfa.layers.StochasticDepth(sd_survival_probability)
         self.norm_after = tf.keras.layers.LayerNormalization()
         self.mlp = MLP(mlp_dim=mlp_dim, activation=activation, dropout=dropout)
+        
+        # Adapter integration
+        self.adapter = Adapter(adapter_dim=adapter_dim, dropout=dropout)
+
 
     def build(self, input_shape):
         super().build(input_shape)
         # TODO YONIGO: tf doc says to do this  ¯\_(ツ)_/¯
         self.attn._build_from_signature(input_shape, input_shape)
 
-    #def call(self, inputs, training=False):
-    #    x = self.norm_before(inputs, training=training)
-    #    attention_output = self.attn(x, x, training=training)
-    #    attention_output += self.lora(x)  # Apply LoRA here
-    #    x = x + attention_output
-    #    x = self.stochastic_depth([inputs, x], training=training)
-    #    x2 = self.norm_after(x, training=training)
-    #    x2 = self.mlp(x2, training=training)
-    #    return self.stochastic_depth([x, x2], training=training)
-    
     def call(self, inputs, training=False):
         x = self.norm_before(inputs, training=training)
         x = self.attn(x, x, training=training)
@@ -120,6 +120,7 @@ class Block(tf.keras.layers.Layer):
         x2 = self.norm_after(x, training=training)
         x2 = self.mlp(x2, training=training)
         return self.stochastic_depth([x, x2], training=training)
+
 
     def get_attention_scores(self, inputs):
         x = self.norm_before(inputs, training=False)
@@ -136,11 +137,11 @@ class VisionTransformer(tf.keras.Model):
             num_heads,
             mlp_dim,
             num_classes,
-            rank,
             dropout=0.0,
             sd_survival_probability=1.0,
             attention_bias=False,
             attention_dropout=0.0,
+            adapter_dim=64,
             *args,
             **kwargs,
     ):
@@ -163,8 +164,8 @@ class VisionTransformer(tf.keras.Model):
                 attention_dropout=attention_dropout,
                 mlp_dim=mlp_dim,
                 sd_survival_probability=(sd[i].numpy().item()),
-                rank=rank,
                 dropout=dropout,
+                adapter_dim=adapter_dim
             )
             for i in range(depth)
         ]

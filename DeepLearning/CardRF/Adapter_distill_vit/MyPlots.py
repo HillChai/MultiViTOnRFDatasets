@@ -7,7 +7,7 @@ from MyLogger import logger
 import numpy as np
 import seaborn as sns
 
-def save_report_and_confusion_matrix(y_true, y_pred, labels, output_dir="/SaveFolders/LoRA_distill_vit/results"):
+def save_report_and_confusion_matrix(y_true, y_pred, labels, output_dir="/SaveFolders/Adapter_distill_vit/results"):
     """
     保存混淆矩阵和分类报告到指定目录。
     Args:

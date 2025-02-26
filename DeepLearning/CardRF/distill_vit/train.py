@@ -8,7 +8,7 @@ from MyModel import VisionTransformer
 from dataset import gen_dataset
 from loss import DistillationLoss
 from config import TRAIN_PATH, BATCH_SIZE, TEST_PATH, OLD_CLASSES, TEACHER_CKPT, NEW_CLASSES, LEARNING_RATE, ALPHA, \
-    TEMPERATURE, labels, train_count, val_count, final_learning_rate
+    TEMPERATURE, LABELS, train_count, val_count, final_learning_rate
 from tensorflow.keras.callbacks import TensorBoard
 
 from tensorflow.keras.optimizers.schedules import CosineDecayRestarts
@@ -72,7 +72,7 @@ def log_to_tensorboard(writer, epoch, train_loss, train_accuracy, train_auc, val
         writer.flush()  # ✅ Ensure logs are written
 
 
-def train(is_old_training: bool, train_path, test_path, checkpoint_dir, epochs):
+def train(is_test_only: bool, is_old_training: bool, train_path, test_path, checkpoint_dir, epochs):
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # 在 TensorBoard 里记录训练数据
@@ -139,114 +139,120 @@ def train(is_old_training: bool, train_path, test_path, checkpoint_dir, epochs):
         student_vit.load_weights(latest_best_model)
         logger.info("✅ 成功加载最佳模型！")
 
-    distill_loss_fn = DistillationLoss(alpha=ALPHA, temperature=TEMPERATURE)
+    if not is_test_only:    
 
-    # 初始化 metrics
-    train_accuracy = tf.keras.metrics.CategoricalAccuracy()
-    train_auc = tf.keras.metrics.AUC()
-    val_accuracy = tf.keras.metrics.CategoricalAccuracy()
-    val_auc = tf.keras.metrics.AUC()
+        distill_loss_fn = DistillationLoss(alpha=ALPHA, temperature=TEMPERATURE)
 
-    best_val_acc = 0.0  # 记录最佳验证集准确率
+        # 初始化 metrics
+        train_accuracy = tf.keras.metrics.CategoricalAccuracy()
+        train_auc = tf.keras.metrics.AUC()
+        val_accuracy = tf.keras.metrics.CategoricalAccuracy()
+        val_auc = tf.keras.metrics.AUC()
 
-    # TensorBoard 监控
-    log_dir = os.path.join("logs", "distillation")
+        best_val_acc = 0.0  # 记录最佳验证集准确率
 
-    writer = tf.summary.create_file_writer(log_dir)
-    # 训练
-    for epoch in range(epochs):
-        epoch_loss = 0.0  # Reset loss for each epoch
-        progress_bar = tqdm(range(train_steps), desc=f"Epoch {epoch + 1}/{epochs}", unit="batch",
-                            dynamic_ncols=True)  # ✅ Fix progress bar
+        # TensorBoard 监控
+        log_dir = os.path.join("logs", "distillation")
 
-        for step, (samples, one_labels) in zip(progress_bar, train_ds):  # ✅ Fix infinite looping
-            loss = train_step(samples, one_labels, student_vit, teacher_vit, distill_loss_fn, optimizer, train_accuracy,
-                              train_auc)
-            loss_value = loss.numpy()
+        writer = tf.summary.create_file_writer(log_dir)
+        # 训练
+        for epoch in range(epochs):
+            epoch_loss = 0.0  # Reset loss for each epoch
+            progress_bar = tqdm(range(train_steps), desc=f"Epoch {epoch + 1}/{epochs}", unit="batch",
+                                dynamic_ncols=True)  # ✅ Fix progress bar
 
-            epoch_loss += loss_value
+            for step, (samples, one_labels) in zip(progress_bar, train_ds):  # ✅ Fix infinite looping
+                loss = train_step(samples, one_labels, student_vit, teacher_vit, distill_loss_fn, optimizer, train_accuracy,
+                                  train_auc)
+                loss_value = loss.numpy()
 
-            # ✅ Get the current learning rate
-            if isinstance(optimizer.learning_rate, tf.keras.optimizers.schedules.LearningRateSchedule):
-                current_lr = optimizer.learning_rate(tf.keras.backend.get_value(optimizer.iterations)).numpy()
-            else:
-                current_lr = tf.keras.backend.get_value(optimizer.learning_rate)
+                epoch_loss += loss_value
 
-            # Ensure safe conversion from Tensor to NumPy or Python float
-            loss_value = loss.numpy() if hasattr(loss, "numpy") else float(loss)
-            accuracy_value = train_accuracy.result().numpy() if hasattr(train_accuracy.result(), "numpy") else float(
-                train_accuracy.result())
-            auc_value = train_auc.result().numpy() if hasattr(train_auc.result(), "numpy") else float(
-                train_auc.result())
+                # ✅ Get the current learning rate
+                if isinstance(optimizer.learning_rate, tf.keras.optimizers.schedules.LearningRateSchedule):
+                    current_lr = optimizer.learning_rate(tf.keras.backend.get_value(optimizer.iterations)).numpy()
+                else:
+                    current_lr = tf.keras.backend.get_value(optimizer.learning_rate)
 
-            # Update tqdm progress bar safely
-            progress_bar.set_postfix_str(
-                f"Loss={loss_value:.2f}, Acc={accuracy_value:.4f}, AUC={auc_value:.4f}, lr={current_lr:.3e}"
-            )
+                # Ensure safe conversion from Tensor to NumPy or Python float
+                loss_value = loss.numpy() if hasattr(loss, "numpy") else float(loss)
+                accuracy_value = train_accuracy.result().numpy() if hasattr(train_accuracy.result(), "numpy") else float(
+                    train_accuracy.result())
+                auc_value = train_auc.result().numpy() if hasattr(train_auc.result(), "numpy") else float(
+                    train_auc.result())
 
-        # Compute average training loss
-        epoch_loss /= train_steps
-        logger.info(
-            f"Epoch {epoch + 1}: Loss: {epoch_loss:.4f}, Accuracy: {train_accuracy.result().numpy():.4f}, AUC: {train_auc.result().numpy():.4f}")
+                # Update tqdm progress bar safely
+                progress_bar.set_postfix_str(
+                    f"Loss={loss_value:.2f}, Acc={accuracy_value:.4f}, AUC={auc_value:.4f}, lr={current_lr:.3e}"
+                )
 
-        # 验证集评估
-        print("🔍 Running validation...")
-        val_loss = 0.0
-        val_accuracy.reset_states()
-        val_auc.reset_states()
+            # Compute average training loss
+            epoch_loss /= train_steps
+            logger.info(
+                f"Epoch {epoch + 1}: Loss: {epoch_loss:.4f}, Accuracy: {train_accuracy.result().numpy():.4f}, AUC: {train_auc.result().numpy():.4f}")
 
-        for step, (samples, labels) in tqdm(enumerate(val_ds), total=val_steps, desc="Validating", unit="batch"):
-            student_logits = student_vit(samples, training=False)
+            # 验证集评估
+            print("🔍 Running validation...")
+            val_loss = 0.0
+            val_accuracy.reset_states()
+            val_auc.reset_states()
 
-            # Compute loss
-            loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-            loss = loss_fn(labels, student_logits)
-            val_loss += loss.numpy()
+            for step, (samples, labels) in tqdm(enumerate(val_ds), total=val_steps, desc="Validating", unit="batch"):
+                student_logits = student_vit(samples, training=False)
 
-            val_accuracy.update_state(labels, student_logits)  # ✅ Correct way
-            val_auc.update_state(labels, student_logits)  # ✅ AUC expects probabilities
+                # Compute loss
+                loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+                loss = loss_fn(labels, student_logits)
+                val_loss += loss.numpy()
 
-        # Compute average validation loss
-        val_loss /= val_steps
+                val_accuracy.update_state(labels, student_logits)  # ✅ Correct way
+                val_auc.update_state(labels, student_logits)  # ✅ AUC expects probabilities
 
-        # Print final validation results
-        logger.info(f"✅ Validation Loss: {val_loss:.4f}")
-        logger.info(f"✅ Validation Accuracy: {val_accuracy.result().numpy():.4f}")
-        logger.info(f"✅ Validation AUC: {val_auc.result().numpy():.4f}")
+            # Compute average validation loss
+            val_loss /= val_steps
 
-        log_to_tensorboard(writer, epoch, epoch_loss, train_accuracy, train_auc, val_loss, val_accuracy, val_auc)
+            # Print final validation results
+            logger.info(f"✅ Validation Loss: {val_loss:.4f}")
+            logger.info(f"✅ Validation Accuracy: {val_accuracy.result().numpy():.4f}")
+            logger.info(f"✅ Validation AUC: {val_auc.result().numpy():.4f}")
 
-        # 保存最佳模型
-        if val_accuracy.result().numpy() > best_val_acc:
-            best_val_acc = val_accuracy.result().numpy()
-            BEST_STUDENT_CKPT = os.path.join(checkpoint_dir, f"best_student_{best_val_acc:.4f}_{int(time.time())}.h5")
-            student_vit.save_weights(BEST_STUDENT_CKPT)
-            logger.info(f"Best model saved with val_acc: {best_val_acc:.4f}")
+            log_to_tensorboard(writer, epoch, epoch_loss, train_accuracy, train_auc, val_loss, val_accuracy, val_auc)
 
-        # 重置 `metrics`
-        train_accuracy.reset_states()
-        train_auc.reset_states()
+            # 保存最佳模型
+            if val_accuracy.result().numpy() > best_val_acc:
+                best_val_acc = val_accuracy.result().numpy()
+                BEST_STUDENT_CKPT = os.path.join(checkpoint_dir, f"best_student_{best_val_acc:.4f}_{int(time.time())}.h5")
+                student_vit.save_weights(BEST_STUDENT_CKPT)
+                logger.info(f"Best model saved with val_acc: {best_val_acc:.4f}")
+
+            # 重置 `metrics`
+            train_accuracy.reset_states()
+            train_auc.reset_states()
 
     # 测试集评估
     logger.info("\nEvaluating on test set:")
     # Compile the model before evaluation
+    y_pred = np.argmax(student_vit.predict(test_ds, verbose=1), axis=1)
+    y_true = np.concatenate([np.argmax(y.numpy(), axis=1) for _, y in test_ds])
+    save_report_and_confusion_matrix(y_true, y_pred, LABELS)    
+
     student_vit.compile(
         optimizer=optimizer,
         loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
         metrics=["accuracy", tf.keras.metrics.AUC()]
     )
+
     test_loss, test_accuracy, test_roc_auc = student_vit.evaluate(test_ds)
     logger.info(f"Test Loss: {test_loss}")
     logger.info(f"Test Accuracy: {test_accuracy}")
     logger.info(f"Test ROC AUC: {test_roc_auc}")
 
-    y_pred = np.argmax(student_vit.predict(test_ds, verbose=1), axis=1)
-    y_true = np.concatenate([np.argmax(y.numpy(), axis=1) for _, y in test_ds])
-    save_report_and_confusion_matrix(y_true, y_pred, labels)
+    
 
 
 if __name__ == '__main__':
-    train(is_old_training=True,
+    train(is_test_only=True,
+          is_old_training=True,
           train_path="/CardRFDataset/CardRF/LOS/Train",
           test_path="/CardRFDataset/CardRF/LOS/Test",
           checkpoint_dir="/SaveFolders/distill_vit/checkpoints",
